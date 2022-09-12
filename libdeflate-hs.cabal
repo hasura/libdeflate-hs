@@ -1,0 +1,51 @@
+cabal-version:      2.4
+name:               libdeflate-hs
+version:            0.1.0.0
+
+-- A short (one-line) description of the package.
+-- synopsis:
+
+-- A longer description of the package.
+-- description:
+
+-- A URL where users can report bugs.
+-- bug-reports:
+
+-- The license under which the package is released.
+-- license:
+author:             Brandon Simmons
+maintainer:         brandon.m.simmons@gmail.com
+
+-- A copyright notice.
+-- copyright:
+-- category:
+extra-source-files: CHANGELOG.md
+                    README.md
+                    cbits/*.h
+                    cbits/*/*.h
+
+library
+    exposed-modules: Codec.Compression.LibDeflate.GZip
+
+    -- Modules included in this library but not exported.
+    -- other-modules:
+
+    -- LANGUAGE extensions used by modules in this package.
+    -- other-extensions:
+    build-depends:    base,
+                      bytestring >= 0.11
+    hs-source-dirs:   src
+    default-language: Haskell2010
+    default-extensions: CApiFFI, CPP, ForeignFunctionInterface, EmptyDataDecls
+    ghc-options:     -Wall -fwarn-tabs
+
+    -- libdeflate source:
+    c-sources: 
+       -- ls cbits/lib/*.c cbits/lib/*/*.c:         
+       cbits/lib/adler32.c           cbits/lib/deflate_compress.c    cbits/lib/gzip_decompress.c   cbits/lib/zlib_compress.c
+       cbits/lib/arm/cpu_features.c  cbits/lib/deflate_decompress.c  cbits/lib/utils.c             cbits/lib/zlib_decompress.c
+       cbits/lib/crc32.c             cbits/lib/gzip_compress.c       cbits/lib/x86/cpu_features.c
+                 
+    include-dirs:  cbits
+    install-includes: libdeflate.h
+    cc-options: -O2
