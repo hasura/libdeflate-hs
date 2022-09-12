@@ -2,19 +2,16 @@ cabal-version:      2.4
 name:               libdeflate-hs
 version:            0.1.0.0
 
--- A short (one-line) description of the package.
--- synopsis:
-
--- A longer description of the package.
--- description:
-
--- A URL where users can report bugs.
--- bug-reports:
+category:        Codec
+synopsis:        TODO
+description:     TODO
+                 TODO
 
 -- The license under which the package is released.
 -- license:
 author:             Brandon Simmons
 maintainer:         brandon.m.simmons@gmail.com
+license: MIT
 
 -- A copyright notice.
 -- copyright:
@@ -22,7 +19,13 @@ maintainer:         brandon.m.simmons@gmail.com
 extra-source-files: CHANGELOG.md
                     README.md
                     cbits/*.h
-                    cbits/*/*.h
+                    -- cbits/*/*.h
+
+source-repository head
+  type: git
+  location: https://github.com/hasura/libdeflate-hs.git
+  branch: main
+
 
 library
     exposed-modules: Codec.Compression.LibDeflate.GZip
@@ -32,7 +35,7 @@ library
 
     -- LANGUAGE extensions used by modules in this package.
     -- other-extensions:
-    build-depends:    base,
+    build-depends:    base <5,
                       bytestring >= 0.11
     hs-source-dirs:   src
     default-language: Haskell2010
@@ -48,4 +51,4 @@ library
                  
     include-dirs:  cbits
     install-includes: libdeflate.h
-    cc-options: -O2
+    -- cc-options: -O2  -- automatic by cabal

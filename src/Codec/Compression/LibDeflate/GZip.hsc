@@ -29,7 +29,6 @@ gzipCompress :: ByteString -> Int -> Int -> Maybe ByteString
 gzipCompress (BS inputFp inputLen) compressionLevel maxCompressedSizeBytes = unsafeDupablePerformIO $ do
     -- NOTE: this takes ~60us; these could be reused in threadsafe pool impl
     compressor <- libdeflate_alloc_compressor $ fromIntegral compressionLevel
-    print (fromIntegral (aft - bef) / (1000::Double))
     withForeignPtr inputFp $ \inputPtr -> do
         outputFp <- mallocForeignPtrBytes maxCompressedSizeBytes
         compressedSizeBytes <- withForeignPtr outputFp $ \outputPtr -> do
