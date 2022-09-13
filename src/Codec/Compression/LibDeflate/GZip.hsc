@@ -1,3 +1,4 @@
+{-# LANGUAGE PatternSynonyms, ViewPatterns #-}
 module Codec.Compression.LibDeflate.GZip (
     LibDeflateCompressor,
     gzipCompress
@@ -5,7 +6,7 @@ module Codec.Compression.LibDeflate.GZip (
 
 import Foreign
 import Foreign.C.Types
-import Data.ByteString.Internal
+import qualified Data.ByteString.Internal as BS
 import System.IO.Unsafe
 import Control.Monad
 
@@ -24,9 +25,11 @@ foreign import capi unsafe "libdeflate.h libdeflate_gzip_compress"
       -- Output compressed size, in bytes, or 0 if couldn't fit:
       -> IO CInt
 
-gzipCompress :: ByteString -> Int -> Int -> Maybe ByteString
+gzipCompress :: BS.ByteString -> Int -> Int -> Maybe BS.ByteString
 {-# NOINLINE gzipCompress #-}
-gzipCompress (BS inputFp inputLen) compressionLevel maxCompressedSizeBytes = unsafeDupablePerformIO $ do
+gzipCompress (BS.PS inputFpDirty off inputLen) compressionLevel maxCompressedSizeBytes = unsafeDupablePerformIO $ do
+    -- NOTE: `PS` is a compatibility pattern synonym on bytestring <0.11
+    let inputFp = inputFpDirty `plusForeignPtr` off
     -- NOTE: this takes ~60us; these could be reused in threadsafe pool impl
     compressor <- libdeflate_alloc_compressor $ fromIntegral compressionLevel
     withForeignPtr inputFp $ \inputPtr -> do
@@ -36,4 +39,4 @@ gzipCompress (BS inputFp inputLen) compressionLevel maxCompressedSizeBytes = uns
               inputPtr (fromIntegral inputLen) 
               outputPtr (fromIntegral maxCompressedSizeBytes)
         return $
-             BS outputFp (fromIntegral compressedSizeBytes) <$ guard (compressedSizeBytes > 0)
+             BS.PS outputFp 0 (fromIntegral compressedSizeBytes) <$ guard (compressedSizeBytes > 0)
