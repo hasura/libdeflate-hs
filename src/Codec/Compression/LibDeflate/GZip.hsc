@@ -1,6 +1,7 @@
 {-# LANGUAGE PatternSynonyms, ViewPatterns #-}
 module Codec.Compression.LibDeflate.GZip (
     LibDeflateCompressor,
+    gzipCompress_reuse,
     gzipCompress
   ) where
 
@@ -9,6 +10,7 @@ import Foreign.C.Types
 import qualified Data.ByteString.Internal as BS
 import System.IO.Unsafe
 import Control.Monad
+import Control.Concurrent
 import Control.Exception
 
 newtype LibDeflateCompressor = LibDeflateCompressor (Ptr LibDeflateCompressor)
@@ -47,3 +49,25 @@ gzipCompress (BS.PS inputFpDirty off inputLen) compressionLevel maxCompressedSiz
                       outputPtr (fromIntegral maxCompressedSizeBytes)
                 return $
                      BS.PS outputFp 0 (fromIntegral compressedSizeBytes) <$ guard (compressedSizeBytes > 0)
+
+-- testing:
+gzipCompress_reuse :: BS.ByteString -> Int -> Maybe BS.ByteString
+{-# NOINLINE gzipCompress_reuse #-}
+gzipCompress_reuse (BS.PS inputFpDirty off inputLen) maxCompressedSizeBytes = unsafePerformIO $ do
+    -- NOTE: `PS` is a compatibility pattern synonym on bytestring <0.11
+    let inputFp = inputFpDirty `plusForeignPtr` off
+    withForeignPtr inputFp $ \inputPtr -> do
+        outputFp <- mallocForeignPtrBytes maxCompressedSizeBytes
+        withMVar theCompressor $ \compressor -> do
+                compressedSizeBytes <- withForeignPtr outputFp $ \outputPtr -> do
+                    libdeflate_gzip_compress compressor 
+                      inputPtr (fromIntegral inputLen) 
+                      outputPtr (fromIntegral maxCompressedSizeBytes)
+                return $
+                     BS.PS outputFp 0 (fromIntegral compressedSizeBytes) <$ guard (compressedSizeBytes > 0)
+
+-- TODO proper pool
+theCompressor :: MVar LibDeflateCompressor
+{-# NOINLINE theCompressor #-}
+theCompressor = unsafePerformIO $ do
+    libdeflate_alloc_compressor 1 >>= newMVar
