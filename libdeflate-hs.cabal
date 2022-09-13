@@ -19,6 +19,9 @@ license: MIT
 extra-source-files: CHANGELOG.md
                     README.md
                     cbits/*.h
+                    cbits/lib/*.h
+                    cbits/lib/arm/*.h
+                    cbits/lib/x86/*.h
                     -- cbits/*/*.h
 
 source-repository head
