@@ -4,6 +4,7 @@ module Main where
 import Codec.Compression.LibDeflate.GZip
 import Foreign
 import Gauge.Main
+import qualified Data.ByteString.Lazy as BL
 
 main :: IO ()
 main =
@@ -47,7 +48,10 @@ main =
         [ -- bump allocated, so pretty cheap:
           bench "mallocForeignPtrBytes 100" $ whnfAppIO mallocForeignPtrBytes 100,
           bench "mallocForeignPtrBytes 10000" $ whnfAppIO mallocForeignPtrBytes 10000,
-          bench "mallocForeignPtrBytes 1000000" $ whnfAppIO mallocForeignPtrBytes 1000000
+          bench "mallocForeignPtrBytes 1000000" $ whnfAppIO mallocForeignPtrBytes 1000000,
+
+          bench "BL.toStrict noop" $ whnf BL.toStrict lbs100,
+          bench "BL.toStrict 1k, 10 chunks" $ whnf BL.toStrict lbs1k
         ]
     ]
   where !zipPayload100 = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaabbbbbbbbbbbbbbbbbbbbbbbbbccccc01234567890123456789"
@@ -55,4 +59,7 @@ main =
         !zipPayload100k = mconcat $ replicate 100 zipPayload1k
         !zipPayload10000k = mconcat $ replicate 100 zipPayload100k
 
--- TODO toStrict
+        lbs100 :: BL.ByteString
+        -- one chunk:
+        !lbs100 = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaabbbbbbbbbbbbbbbbbbbbbbbbbccccc01234567890123456789"
+        !lbs1k = BL.fromChunks $ replicate 10 zipPayload100
