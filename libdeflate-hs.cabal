@@ -67,6 +67,7 @@ benchmark benchmarks
     base >= 4.10,
     bytestring,
     libdeflate-hs,
+    zlib,
     gauge
 
   default-language: Haskell2010
