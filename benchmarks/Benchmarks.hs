@@ -7,12 +7,54 @@ import Foreign
 import Gauge.Main
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.ByteString as B
+import Data.Maybe
 
 main :: IO ()
 main = do
   -- For now assume benchmarks run from the top level of repo:
   !zipPayloadChinookFullIntrospection_200k <- B.readFile "benchmarks/chinookFullIntrospection.json"
   !zipPayloadChinookSimpleQuery_400 <- B.readFile "benchmarks/chinookSimpleQuery.json"
+
+  putStrLn "---------------------------------------------"
+  putStrLn "First some compression stats:"
+  let sz_zlib_lev1_zipPayloadChinookSimpleQuery_400 = BL.length $ 
+            (Zlib.compressWith (Zlib.defaultCompressParams {Zlib.compressLevel = Zlib.compressionLevel 1}))
+            $ BL.fromStrict zipPayloadChinookSimpleQuery_400
+  let sz_zlib_lev6_zipPayloadChinookSimpleQuery_400 = BL.length $ 
+            (Zlib.compressWith (Zlib.defaultCompressParams {Zlib.compressLevel = Zlib.compressionLevel 6}))
+            $ BL.fromStrict zipPayloadChinookSimpleQuery_400
+
+  let sz_zlib_lev1_zipPayloadChinookFullIntrospection_200k = BL.length $
+            (Zlib.compressWith (Zlib.defaultCompressParams {Zlib.compressLevel = Zlib.compressionLevel 1}))
+            $ BL.fromStrict zipPayloadChinookFullIntrospection_200k
+  let sz_zlib_lev6_zipPayloadChinookFullIntrospection_200k = BL.length $
+            (Zlib.compressWith (Zlib.defaultCompressParams {Zlib.compressLevel = Zlib.compressionLevel 6}))
+            $ BL.fromStrict zipPayloadChinookFullIntrospection_200k
+
+  let sz_libdeflate_lev1_zipPayloadChinookSimpleQuery_400 = B.length $ fromJust $
+                let !outpBuffSz = floor $ fromIntegral (B.length zipPayloadChinookSimpleQuery_400) * (0.8 :: Float)
+                 in (\p -> gzipCompress p 1 outpBuffSz) zipPayloadChinookSimpleQuery_400
+  let sz_libdeflate_lev6_zipPayloadChinookSimpleQuery_400 = B.length $ fromJust $
+                let !outpBuffSz = floor $ fromIntegral (B.length zipPayloadChinookSimpleQuery_400) * (0.8 :: Float)
+                 in (\p -> gzipCompress p 6 outpBuffSz) zipPayloadChinookSimpleQuery_400
+
+  let sz_libdeflate_lev1_zipPayloadChinookFullIntrospection_200k = B.length $ fromJust $
+                let !outpBuffSz = floor $ fromIntegral (B.length zipPayloadChinookFullIntrospection_200k) * (0.8 :: Float)
+                 in (\p -> gzipCompress p 1 outpBuffSz) zipPayloadChinookFullIntrospection_200k
+  let sz_libdeflate_lev6_zipPayloadChinookFullIntrospection_200k = B.length $ fromJust $
+                let !outpBuffSz = floor $ fromIntegral (B.length zipPayloadChinookFullIntrospection_200k) * (0.8 :: Float)
+                 in (\p -> gzipCompress p 6 outpBuffSz) zipPayloadChinookFullIntrospection_200k
+
+  print (sz_zlib_lev1_zipPayloadChinookSimpleQuery_400 , "    sz_zlib_lev1_zipPayloadChinookSimpleQuery_400" ::String)
+  print ( sz_zlib_lev6_zipPayloadChinookSimpleQuery_400 , "    sz_zlib_lev6_zipPayloadChinookSimpleQuery_400" ::String)
+  print ( sz_zlib_lev1_zipPayloadChinookFullIntrospection_200k , "    sz_zlib_lev1_zipPayloadChinookFullIntrospection_200k" ::String)
+  print ( sz_zlib_lev6_zipPayloadChinookFullIntrospection_200k , "    sz_zlib_lev6_zipPayloadChinookFullIntrospection_200k" ::String)
+  print ( sz_libdeflate_lev1_zipPayloadChinookSimpleQuery_400 , "    sz_libdeflate_lev1_zipPayloadChinookSimpleQuery_400" ::String)
+  print ( sz_libdeflate_lev6_zipPayloadChinookSimpleQuery_400 , "    sz_libdeflate_lev6_zipPayloadChinookSimpleQuery_400" ::String)
+  print ( sz_libdeflate_lev1_zipPayloadChinookFullIntrospection_200k , "    sz_libdeflate_lev1_zipPayloadChinookFullIntrospection_200k" ::String)
+  print ( sz_libdeflate_lev6_zipPayloadChinookFullIntrospection_200k , "    sz_libdeflate_lev6_zipPayloadChinookFullIntrospection_200k" ::String)
+
+  putStrLn "---------------------------------------------"
 
   defaultMain
     [ bgroup "reference" [
@@ -33,8 +75,15 @@ main = do
        ,  bench "zlib gzip lev1 zipPayloadChinookSimpleQuery_400" $
             nf (Zlib.compressWith (Zlib.defaultCompressParams {Zlib.compressLevel = Zlib.compressionLevel 1}))
             $ BL.fromStrict zipPayloadChinookSimpleQuery_400
+       ,  bench "zlib gzip lev6 zipPayloadChinookSimpleQuery_400" $
+            nf (Zlib.compressWith (Zlib.defaultCompressParams {Zlib.compressLevel = Zlib.compressionLevel 6}))
+            $ BL.fromStrict zipPayloadChinookSimpleQuery_400
+
        ,  bench "zlib gzip lev1 zipPayloadChinookFullIntrospection_200k" $
             nf (Zlib.compressWith (Zlib.defaultCompressParams {Zlib.compressLevel = Zlib.compressionLevel 1}))
+            $ BL.fromStrict zipPayloadChinookFullIntrospection_200k
+       ,  bench "zlib gzip lev6 zipPayloadChinookFullIntrospection_200k" $
+            nf (Zlib.compressWith (Zlib.defaultCompressParams {Zlib.compressLevel = Zlib.compressionLevel 6}))
             $ BL.fromStrict zipPayloadChinookFullIntrospection_200k
        ]
 
@@ -48,39 +97,47 @@ main = do
 
         , bgroup "level 1" [
               bench "gzipCompress 1k" $
-                whnf (\p -> gzipCompress p 1 1000) zipPayload1k
+                nf (\p -> gzipCompress p 1 1000) zipPayload1k
             , bench "gzipCompress 10k" $
-                whnf (\p -> gzipCompress p 1 10000) zipPayload10k
+                nf (\p -> gzipCompress p 1 10000) zipPayload10k
             , bench "gzipCompress 100k" $
-                whnf (\p -> gzipCompress p 1 100000) zipPayload100k
+                nf (\p -> gzipCompress p 1 100000) zipPayload100k
             , bench "gzipCompress 10000k" $
-                whnf (\p -> gzipCompress p 1 10000000) zipPayload10000k
+                nf (\p -> gzipCompress p 1 10000000) zipPayload10000k
 
-            -- More closely matching hasura benchmarks:
+            -- NOTE: arbitrarily use output buffer of size fact 0.8:
             , bench "gzipCompress zipPayloadChinookSimpleQuery_400" $
-                let !outpBuffSz = floor $ fromIntegral (B.length zipPayloadChinookSimpleQuery_400) * (0.5 :: Float)
-                 in whnf (\p -> gzipCompress p 1 outpBuffSz) zipPayloadChinookSimpleQuery_400
+                let !outpBuffSz = floor $ fromIntegral (B.length zipPayloadChinookSimpleQuery_400) * (0.8 :: Float)
+                 in nf (\p -> fromJust $ gzipCompress p 1 outpBuffSz) zipPayloadChinookSimpleQuery_400
             , bench "gzipCompress zipPayloadChinookFullIntrospection_200k" $
-                let !outpBuffSz = floor $ fromIntegral (B.length zipPayloadChinookFullIntrospection_200k) * (0.5 :: Float)
-                 in whnf (\p -> gzipCompress p 1 outpBuffSz) zipPayloadChinookFullIntrospection_200k
+                let !outpBuffSz = floor $ fromIntegral (B.length zipPayloadChinookFullIntrospection_200k) * (0.8 :: Float)
+                 in nf (\p -> fromJust $ gzipCompress p 1 outpBuffSz) zipPayloadChinookFullIntrospection_200k
             ]
 
         , bgroup "level 6" [
               bench "gzipCompress 1k" $
-                whnf (\p -> gzipCompress p 6 1000) zipPayload1k
+                nf (\p -> fromJust $ gzipCompress p 6 1000) zipPayload1k
             , bench "gzipCompress 100k" $
-                whnf (\p -> gzipCompress p 6 100000) zipPayload100k
+                nf (\p -> fromJust $ gzipCompress p 6 100000) zipPayload100k
             , bench "gzipCompress 10000k" $
-                whnf (\p -> gzipCompress p 6 10000000) zipPayload10000k
+                nf (\p -> fromJust $ gzipCompress p 6 10000000) zipPayload10000k
+
+            -- NOTE: arbitrarily use output buffer of size fact 0.8:
+            , bench "gzipCompress zipPayloadChinookSimpleQuery_400" $
+                let !outpBuffSz = floor $ fromIntegral (B.length zipPayloadChinookSimpleQuery_400) * (0.8 :: Float)
+                 in nf (\p -> fromJust $ gzipCompress p 6 outpBuffSz) zipPayloadChinookSimpleQuery_400
+            , bench "gzipCompress zipPayloadChinookFullIntrospection_200k" $
+                let !outpBuffSz = floor $ fromIntegral (B.length zipPayloadChinookFullIntrospection_200k) * (0.8 :: Float)
+                 in nf (\p -> fromJust $ gzipCompress p 6 outpBuffSz) zipPayloadChinookFullIntrospection_200k
             ]
 
         , bgroup "level 12" [
               bench "gzipCompress 1k" $
-                whnf (\p -> gzipCompress p 12 1000) zipPayload1k
+                nf (\p -> fromJust $ gzipCompress p 12 1000) zipPayload1k
             , bench "gzipCompress 100k" $
-                whnf (\p -> gzipCompress p 12 100000) zipPayload100k
+                nf (\p -> fromJust $ gzipCompress p 12 100000) zipPayload100k
             , bench "gzipCompress 10000k" $
-                whnf (\p -> gzipCompress p 12 10000000) zipPayload10000k
+                nf (\p -> fromJust $ gzipCompress p 12 10000000) zipPayload10000k
             ]
         ],
       bgroup "misc"
