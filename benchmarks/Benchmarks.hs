@@ -13,6 +13,7 @@ main :: IO ()
 main = do
   -- For now assume benchmarks run from the top level of repo:
   !zipPayloadChinookFullIntrospection_200k <- B.readFile "benchmarks/chinookFullIntrospection.json"
+  !zipPayloadChinookFullIntrospection_20k_truncated <- B.readFile "benchmarks/chinookFullIntrospection-20k-truncated.json"
   !zipPayloadChinookSimpleQuery_400 <- B.readFile "benchmarks/chinookSimpleQuery.json"
 
   putStrLn "---------------------------------------------"
@@ -24,6 +25,14 @@ main = do
             (Zlib.compressWith (Zlib.defaultCompressParams {Zlib.compressLevel = Zlib.compressionLevel 6}))
             $ BL.fromStrict zipPayloadChinookSimpleQuery_400
 
+  -- 20k json
+  let sz_zlib_lev1_zipPayloadChinookFullIntrospection_20k_truncated = BL.length $
+            (Zlib.compressWith (Zlib.defaultCompressParams {Zlib.compressLevel = Zlib.compressionLevel 1}))
+            $ BL.fromStrict zipPayloadChinookFullIntrospection_20k_truncated
+  let sz_zlib_lev6_zipPayloadChinookFullIntrospection_20k_truncated = BL.length $
+            (Zlib.compressWith (Zlib.defaultCompressParams {Zlib.compressLevel = Zlib.compressionLevel 6}))
+            $ BL.fromStrict zipPayloadChinookFullIntrospection_20k_truncated
+  -- 200k json
   let sz_zlib_lev1_zipPayloadChinookFullIntrospection_200k = BL.length $
             (Zlib.compressWith (Zlib.defaultCompressParams {Zlib.compressLevel = Zlib.compressionLevel 1}))
             $ BL.fromStrict zipPayloadChinookFullIntrospection_200k
@@ -37,22 +46,48 @@ main = do
   let sz_libdeflate_lev6_zipPayloadChinookSimpleQuery_400 = B.length $ fromJust $
                 let !outpBuffSz = floor $ fromIntegral (B.length zipPayloadChinookSimpleQuery_400) * (0.8 :: Float)
                  in (\p -> gzipCompress p 6 outpBuffSz) zipPayloadChinookSimpleQuery_400
+  let sz_libdeflate_lev12_zipPayloadChinookSimpleQuery_400 = B.length $ fromJust $
+                let !outpBuffSz = floor $ fromIntegral (B.length zipPayloadChinookSimpleQuery_400) * (0.8 :: Float)
+                 in (\p -> gzipCompress p 12 outpBuffSz) zipPayloadChinookSimpleQuery_400
 
+  -- 20k json
+  let sz_libdeflate_lev1_zipPayloadChinookFullIntrospection_20k_truncated = B.length $ fromJust $
+                let !outpBuffSz = floor $ fromIntegral (B.length zipPayloadChinookFullIntrospection_20k_truncated) * (0.8 :: Float)
+                 in (\p -> gzipCompress p 1 outpBuffSz) zipPayloadChinookFullIntrospection_20k_truncated
+  let sz_libdeflate_lev6_zipPayloadChinookFullIntrospection_20k_truncated = B.length $ fromJust $
+                let !outpBuffSz = floor $ fromIntegral (B.length zipPayloadChinookFullIntrospection_20k_truncated) * (0.8 :: Float)
+                 in (\p -> gzipCompress p 6 outpBuffSz) zipPayloadChinookFullIntrospection_20k_truncated
+  let sz_libdeflate_lev12_zipPayloadChinookFullIntrospection_20k_truncated = B.length $ fromJust $
+                let !outpBuffSz = floor $ fromIntegral (B.length zipPayloadChinookFullIntrospection_20k_truncated) * (0.8 :: Float)
+                 in (\p -> gzipCompress p 12 outpBuffSz) zipPayloadChinookFullIntrospection_20k_truncated
+  -- 200k json
   let sz_libdeflate_lev1_zipPayloadChinookFullIntrospection_200k = B.length $ fromJust $
                 let !outpBuffSz = floor $ fromIntegral (B.length zipPayloadChinookFullIntrospection_200k) * (0.8 :: Float)
                  in (\p -> gzipCompress p 1 outpBuffSz) zipPayloadChinookFullIntrospection_200k
   let sz_libdeflate_lev6_zipPayloadChinookFullIntrospection_200k = B.length $ fromJust $
                 let !outpBuffSz = floor $ fromIntegral (B.length zipPayloadChinookFullIntrospection_200k) * (0.8 :: Float)
                  in (\p -> gzipCompress p 6 outpBuffSz) zipPayloadChinookFullIntrospection_200k
+  let sz_libdeflate_lev12_zipPayloadChinookFullIntrospection_200k = B.length $ fromJust $
+                let !outpBuffSz = floor $ fromIntegral (B.length zipPayloadChinookFullIntrospection_200k) * (0.8 :: Float)
+                 in (\p -> gzipCompress p 12 outpBuffSz) zipPayloadChinookFullIntrospection_200k
 
   print (sz_zlib_lev1_zipPayloadChinookSimpleQuery_400 , "    sz_zlib_lev1_zipPayloadChinookSimpleQuery_400" ::String)
   print ( sz_zlib_lev6_zipPayloadChinookSimpleQuery_400 , "    sz_zlib_lev6_zipPayloadChinookSimpleQuery_400" ::String)
+  print ( sz_zlib_lev1_zipPayloadChinookFullIntrospection_20k_truncated , "    sz_zlib_lev1_zipPayloadChinookFullIntrospection_20k_truncated" ::String)
+  print ( sz_zlib_lev6_zipPayloadChinookFullIntrospection_20k_truncated , "    sz_zlib_lev6_zipPayloadChinookFullIntrospection_20k_truncated" ::String)
   print ( sz_zlib_lev1_zipPayloadChinookFullIntrospection_200k , "    sz_zlib_lev1_zipPayloadChinookFullIntrospection_200k" ::String)
   print ( sz_zlib_lev6_zipPayloadChinookFullIntrospection_200k , "    sz_zlib_lev6_zipPayloadChinookFullIntrospection_200k" ::String)
   print ( sz_libdeflate_lev1_zipPayloadChinookSimpleQuery_400 , "    sz_libdeflate_lev1_zipPayloadChinookSimpleQuery_400" ::String)
   print ( sz_libdeflate_lev6_zipPayloadChinookSimpleQuery_400 , "    sz_libdeflate_lev6_zipPayloadChinookSimpleQuery_400" ::String)
+  print ( sz_libdeflate_lev12_zipPayloadChinookSimpleQuery_400 , "    sz_libdeflate_lev12_zipPayloadChinookSimpleQuery_400" ::String)
+
+  print ( sz_libdeflate_lev1_zipPayloadChinookFullIntrospection_20k_truncated , "    sz_libdeflate_lev1_zipPayloadChinookFullIntrospection_20k_truncated" ::String)
+  print ( sz_libdeflate_lev6_zipPayloadChinookFullIntrospection_20k_truncated , "    sz_libdeflate_lev6_zipPayloadChinookFullIntrospection_20k_truncated" ::String)
+  print ( sz_libdeflate_lev12_zipPayloadChinookFullIntrospection_20k_truncated , "    sz_libdeflate_lev12_zipPayloadChinookFullIntrospection_20k_truncated" ::String)
+
   print ( sz_libdeflate_lev1_zipPayloadChinookFullIntrospection_200k , "    sz_libdeflate_lev1_zipPayloadChinookFullIntrospection_200k" ::String)
   print ( sz_libdeflate_lev6_zipPayloadChinookFullIntrospection_200k , "    sz_libdeflate_lev6_zipPayloadChinookFullIntrospection_200k" ::String)
+  print ( sz_libdeflate_lev12_zipPayloadChinookFullIntrospection_200k , "    sz_libdeflate_lev12_zipPayloadChinookFullIntrospection_200k" ::String)
 
   putStrLn "---------------------------------------------"
 
@@ -109,6 +144,9 @@ main = do
             , bench "gzipCompress zipPayloadChinookSimpleQuery_400" $
                 let !outpBuffSz = floor $ fromIntegral (B.length zipPayloadChinookSimpleQuery_400) * (0.8 :: Float)
                  in nf (\p -> fromJust $ gzipCompress p 1 outpBuffSz) zipPayloadChinookSimpleQuery_400
+            , bench "gzipCompress zipPayloadChinookFullIntrospection_20k_truncated" $
+                let !outpBuffSz = floor $ fromIntegral (B.length zipPayloadChinookFullIntrospection_20k_truncated) * (0.8 :: Float)
+                 in nf (\p -> fromJust $ gzipCompress p 1 outpBuffSz) zipPayloadChinookFullIntrospection_20k_truncated
             , bench "gzipCompress zipPayloadChinookFullIntrospection_200k" $
                 let !outpBuffSz = floor $ fromIntegral (B.length zipPayloadChinookFullIntrospection_200k) * (0.8 :: Float)
                  in nf (\p -> fromJust $ gzipCompress p 1 outpBuffSz) zipPayloadChinookFullIntrospection_200k
@@ -126,6 +164,9 @@ main = do
             , bench "gzipCompress zipPayloadChinookSimpleQuery_400" $
                 let !outpBuffSz = floor $ fromIntegral (B.length zipPayloadChinookSimpleQuery_400) * (0.8 :: Float)
                  in nf (\p -> fromJust $ gzipCompress p 6 outpBuffSz) zipPayloadChinookSimpleQuery_400
+            , bench "gzipCompress zipPayloadChinookFullIntrospection_20k_truncated" $
+                let !outpBuffSz = floor $ fromIntegral (B.length zipPayloadChinookFullIntrospection_20k_truncated) * (0.8 :: Float)
+                 in nf (\p -> fromJust $ gzipCompress p 6 outpBuffSz) zipPayloadChinookFullIntrospection_20k_truncated
             , bench "gzipCompress zipPayloadChinookFullIntrospection_200k" $
                 let !outpBuffSz = floor $ fromIntegral (B.length zipPayloadChinookFullIntrospection_200k) * (0.8 :: Float)
                  in nf (\p -> fromJust $ gzipCompress p 6 outpBuffSz) zipPayloadChinookFullIntrospection_200k
