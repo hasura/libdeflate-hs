@@ -126,6 +126,9 @@ main = do
         [ bench "alloc free compressor 1" $
             whnfIO $ do
               libdeflate_alloc_compressor 1 >>= libdeflate_free_compressor
+        , bench "alloc free compressor 6" $
+            whnfIO $ do
+              libdeflate_alloc_compressor 6 >>= libdeflate_free_compressor
         , bench "alloc free compressor 12" $
             whnfIO $ do
               libdeflate_alloc_compressor 12 >>= libdeflate_free_compressor
