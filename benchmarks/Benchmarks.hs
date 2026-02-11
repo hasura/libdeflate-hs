@@ -4,7 +4,7 @@ module Main where
 import Codec.Compression.LibDeflate.GZip
 import qualified Codec.Compression.GZip as Zlib
 import Foreign
-import Gauge.Main
+import Criterion.Main
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.ByteString as B
 import Data.Maybe
@@ -199,6 +199,7 @@ main = do
         !zipPayload1k = mconcat $ replicate 10 zipPayload100
         !zipPayload10k = mconcat $ replicate 10 zipPayload1k
         !zipPayload100k = mconcat $ replicate 100 zipPayload1k
+        -- 10MB
         !zipPayload10000k = mconcat $ replicate 100 zipPayload100k
 
         lbs100 :: BL.ByteString
