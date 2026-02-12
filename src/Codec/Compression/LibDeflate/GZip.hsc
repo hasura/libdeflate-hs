@@ -29,7 +29,10 @@ newtype LibDeflateCompressor = LibDeflateCompressor (Ptr LibDeflateCompressor)
 foreign import capi unsafe "libdeflate.h libdeflate_alloc_compressor"
   libdeflate_alloc_compressor :: CInt -> IO LibDeflateCompressor
 
-foreign import capi unsafe "libdeflate.h libdeflate_gzip_compress"
+-- 'safe' is important for performance here, otherwise we get long sync periods
+-- before GC and these interact particularly badly with large objects (that we
+-- might be compressing)
+foreign import capi   safe "libdeflate.h libdeflate_gzip_compress"
   libdeflate_gzip_compress 
       :: LibDeflateCompressor
       -- input buffer/size:
