@@ -4,7 +4,7 @@ module Main where
 import Codec.Compression.LibDeflate.GZip
 import qualified Codec.Compression.GZip as Zlib
 import Foreign
-import Gauge.Main
+import Criterion.Main
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.ByteString as B
 import Data.Maybe
@@ -15,6 +15,9 @@ main = do
   !zipPayloadChinookFullIntrospection_200k <- B.readFile "benchmarks/chinookFullIntrospection.json"
   !zipPayloadChinookFullIntrospection_20k_truncated <- B.readFile "benchmarks/chinookFullIntrospection-20k-truncated.json"
   !zipPayloadChinookSimpleQuery_400 <- B.readFile "benchmarks/chinookSimpleQuery.json"
+
+  -- Create 100MB payload from 200k json (500 * 200k = 100MB)
+  let !zipPayloadChinook_100MB = mconcat $ replicate 500 zipPayloadChinookFullIntrospection_200k
 
   putStrLn "---------------------------------------------"
   putStrLn "First some compression stats:"
@@ -39,6 +42,13 @@ main = do
   let sz_zlib_lev6_zipPayloadChinookFullIntrospection_200k = BL.length $
             (Zlib.compressWith (Zlib.defaultCompressParams {Zlib.compressLevel = Zlib.compressionLevel 6}))
             $ BL.fromStrict zipPayloadChinookFullIntrospection_200k
+  -- 100MB json
+  let sz_zlib_lev1_zipPayloadChinook_100MB = BL.length $
+            (Zlib.compressWith (Zlib.defaultCompressParams {Zlib.compressLevel = Zlib.compressionLevel 1}))
+            $ BL.fromStrict zipPayloadChinook_100MB
+  let sz_zlib_lev6_zipPayloadChinook_100MB = BL.length $
+            (Zlib.compressWith (Zlib.defaultCompressParams {Zlib.compressLevel = Zlib.compressionLevel 6}))
+            $ BL.fromStrict zipPayloadChinook_100MB
 
   let sz_libdeflate_lev1_zipPayloadChinookSimpleQuery_400 = B.length $ fromJust $
                 let !outpBuffSz = floor $ fromIntegral (B.length zipPayloadChinookSimpleQuery_400) * (0.8 :: Float)
@@ -70,6 +80,13 @@ main = do
   let sz_libdeflate_lev12_zipPayloadChinookFullIntrospection_200k = B.length $ fromJust $
                 let !outpBuffSz = floor $ fromIntegral (B.length zipPayloadChinookFullIntrospection_200k) * (0.8 :: Float)
                  in (\p -> gzipCompress p 12 outpBuffSz) zipPayloadChinookFullIntrospection_200k
+  -- 100MB json
+  let sz_libdeflate_lev1_zipPayloadChinook_100MB = B.length $ fromJust $
+                let !outpBuffSz = floor $ fromIntegral (B.length zipPayloadChinook_100MB) * (0.8 :: Float)
+                 in (\p -> gzipCompress p 1 outpBuffSz) zipPayloadChinook_100MB
+  let sz_libdeflate_lev6_zipPayloadChinook_100MB = B.length $ fromJust $
+                let !outpBuffSz = floor $ fromIntegral (B.length zipPayloadChinook_100MB) * (0.8 :: Float)
+                 in (\p -> gzipCompress p 6 outpBuffSz) zipPayloadChinook_100MB
 
   print (sz_zlib_lev1_zipPayloadChinookSimpleQuery_400 , "    sz_zlib_lev1_zipPayloadChinookSimpleQuery_400" ::String)
   print ( sz_zlib_lev6_zipPayloadChinookSimpleQuery_400 , "    sz_zlib_lev6_zipPayloadChinookSimpleQuery_400" ::String)
@@ -88,6 +105,11 @@ main = do
   print ( sz_libdeflate_lev1_zipPayloadChinookFullIntrospection_200k , "    sz_libdeflate_lev1_zipPayloadChinookFullIntrospection_200k" ::String)
   print ( sz_libdeflate_lev6_zipPayloadChinookFullIntrospection_200k , "    sz_libdeflate_lev6_zipPayloadChinookFullIntrospection_200k" ::String)
   print ( sz_libdeflate_lev12_zipPayloadChinookFullIntrospection_200k , "    sz_libdeflate_lev12_zipPayloadChinookFullIntrospection_200k" ::String)
+
+  print ( sz_zlib_lev1_zipPayloadChinook_100MB , "    sz_zlib_lev1_zipPayloadChinook_100MB" ::String)
+  print ( sz_zlib_lev6_zipPayloadChinook_100MB , "    sz_zlib_lev6_zipPayloadChinook_100MB" ::String)
+  print ( sz_libdeflate_lev1_zipPayloadChinook_100MB , "    sz_libdeflate_lev1_zipPayloadChinook_100MB" ::String)
+  print ( sz_libdeflate_lev6_zipPayloadChinook_100MB , "    sz_libdeflate_lev6_zipPayloadChinook_100MB" ::String)
 
   putStrLn "---------------------------------------------"
 
@@ -120,6 +142,13 @@ main = do
        ,  bench "zlib gzip lev6 zipPayloadChinookFullIntrospection_200k" $
             nf (Zlib.compressWith (Zlib.defaultCompressParams {Zlib.compressLevel = Zlib.compressionLevel 6}))
             $ BL.fromStrict zipPayloadChinookFullIntrospection_200k
+
+       ,  bench "zlib gzip lev1 zipPayloadChinook_100MB" $
+            nf (Zlib.compressWith (Zlib.defaultCompressParams {Zlib.compressLevel = Zlib.compressionLevel 1}))
+            $ BL.fromStrict zipPayloadChinook_100MB
+       ,  bench "zlib gzip lev6 zipPayloadChinook_100MB" $
+            nf (Zlib.compressWith (Zlib.defaultCompressParams {Zlib.compressLevel = Zlib.compressionLevel 6}))
+            $ BL.fromStrict zipPayloadChinook_100MB
        ]
 
     , bgroup "libdeflate"
@@ -153,6 +182,9 @@ main = do
             , bench "gzipCompress zipPayloadChinookFullIntrospection_200k" $
                 let !outpBuffSz = floor $ fromIntegral (B.length zipPayloadChinookFullIntrospection_200k) * (0.8 :: Float)
                  in nf (\p -> fromJust $ gzipCompress p 1 outpBuffSz) zipPayloadChinookFullIntrospection_200k
+            , bench "gzipCompress zipPayloadChinook_100MB" $
+                let !outpBuffSz = floor $ fromIntegral (B.length zipPayloadChinook_100MB) * (0.8 :: Float)
+                 in nf (\p -> BL.toStrict $ BL.fromStrict $ fromJust $ gzipCompress p 1 outpBuffSz) zipPayloadChinook_100MB
             ]
 
         , bgroup "level 6" [
@@ -173,6 +205,9 @@ main = do
             , bench "gzipCompress zipPayloadChinookFullIntrospection_200k" $
                 let !outpBuffSz = floor $ fromIntegral (B.length zipPayloadChinookFullIntrospection_200k) * (0.8 :: Float)
                  in nf (\p -> fromJust $ gzipCompress p 6 outpBuffSz) zipPayloadChinookFullIntrospection_200k
+            , bench "gzipCompress zipPayloadChinook_100MB" $
+                let !outpBuffSz = floor $ fromIntegral (B.length zipPayloadChinook_100MB) * (0.8 :: Float)
+                 in nf (\p -> BL.toStrict $ BL.fromStrict $ fromJust $ gzipCompress p 6 outpBuffSz) zipPayloadChinook_100MB
             ]
 
         , bgroup "level 12" [
@@ -199,6 +234,7 @@ main = do
         !zipPayload1k = mconcat $ replicate 10 zipPayload100
         !zipPayload10k = mconcat $ replicate 10 zipPayload1k
         !zipPayload100k = mconcat $ replicate 100 zipPayload1k
+        -- 10MB
         !zipPayload10000k = mconcat $ replicate 100 zipPayload100k
 
         lbs100 :: BL.ByteString
