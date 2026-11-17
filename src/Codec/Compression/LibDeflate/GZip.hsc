@@ -32,21 +32,27 @@ foreign import capi unsafe "libdeflate.h libdeflate_alloc_compressor"
 -- 'safe' is important for performance here, otherwise we get long sync periods
 -- before GC and these interact particularly badly with large objects (that we
 -- might be compressing)
+--
+-- NOTE: sizes must be 'CSize' to match libdeflate's @size_t@. These used to be
+-- 'CInt', so an input of 2^31..2^32-1 bytes was passed as a negative int that
+-- C sign-extended to a ~1.8e19 byte length; the lazy compressor (levels 5-9)
+-- then wrote past the end of its matchfinder table and segfaulted. Larger
+-- inputs could also wrap to a small positive length and be silently truncated.
 foreign import capi   safe "libdeflate.h libdeflate_gzip_compress"
   libdeflate_gzip_compress 
       :: LibDeflateCompressor
       -- input buffer/size:
-      -> Ptr Word8 -> CInt
+      -> Ptr Word8 -> CSize
       -- output buffer/size:
-      -> Ptr Word8 -> CInt 
+      -> Ptr Word8 -> CSize
       -- Output compressed size, in bytes, or 0 if couldn't fit:
-      -> IO CInt
+      -> IO CSize
 
 foreign import capi unsafe "libdeflate.h libdeflate_free_compressor"
   libdeflate_free_compressor :: LibDeflateCompressor -> IO ()
 
 foreign import capi unsafe "libdeflate.h libdeflate_gzip_compress_bound"
-  libdeflate_gzip_compress_bound  :: LibDeflateCompressor -> CInt -> CInt
+  libdeflate_gzip_compress_bound  :: LibDeflateCompressor -> CSize -> CSize
 
 -- | return the maximum  (worst case) buffer size needed to  store a
 -- compressed string of the given length
