@@ -32,21 +32,27 @@ foreign import capi unsafe "libdeflate.h libdeflate_alloc_compressor"
 -- 'safe' is important for performance here, otherwise we get long sync periods
 -- before GC and these interact particularly badly with large objects (that we
 -- might be compressing)
+--
+-- NOTE: sizes must be 'CSize' to match libdeflate's @size_t@. These used to be
+-- 'CInt', so an input of 2^31..2^32-1 bytes was passed as a negative int that
+-- C sign-extended to a ~1.8e19 byte length; the lazy compressor (levels 5-9)
+-- then wrote past the end of its matchfinder table and segfaulted. Larger
+-- inputs could also wrap to a small positive length and be silently truncated.
 foreign import capi   safe "libdeflate.h libdeflate_gzip_compress"
   libdeflate_gzip_compress 
       :: LibDeflateCompressor
       -- input buffer/size:
-      -> Ptr Word8 -> CInt
+      -> Ptr Word8 -> CSize
       -- output buffer/size:
-      -> Ptr Word8 -> CInt 
+      -> Ptr Word8 -> CSize
       -- Output compressed size, in bytes, or 0 if couldn't fit:
-      -> IO CInt
+      -> IO CSize
 
 foreign import capi unsafe "libdeflate.h libdeflate_free_compressor"
   libdeflate_free_compressor :: LibDeflateCompressor -> IO ()
 
 foreign import capi unsafe "libdeflate.h libdeflate_gzip_compress_bound"
-  libdeflate_gzip_compress_bound  :: LibDeflateCompressor -> CInt -> CInt
+  libdeflate_gzip_compress_bound  :: LibDeflateCompressor -> CSize -> CSize
 
 -- | return the maximum  (worst case) buffer size needed to  store a
 -- compressed string of the given length
@@ -88,8 +94,8 @@ gzipCompress (BS.PS inputFpDirty off inputLen) compressionLevel maxCompressedSiz
     bracket
     -- NOTE: this takes ~3us to 13us depending on compression level; these
     -- could be reused in threadsafe pool impl, but probably not warranted
-      (libdeflate_alloc_compressor $ fromIntegral compressionLevel)
-      libdeflate_free_compressor 
+      allocCompressor
+      libdeflate_free_compressor
        $ \compressor -> do
             -- NOTE unsafeWithForeignPtr: we must not loop or throw exception in continuation:
             unsafeWithForeignPtr inputFp $ \inputPtr -> do
@@ -99,6 +105,19 @@ gzipCompress (BS.PS inputFpDirty off inputLen) compressionLevel maxCompressedSiz
                       outputPtr (fromIntegral maxCompressedSizeBytes)
                 return $
                      BS.PS outputFp 0 (fromIntegral compressedSizeBytes) <$ guard (compressedSizeBytes > 0)
+  where
+    -- libdeflate_alloc_compressor returns NULL for a level outside 0-12, or if
+    -- allocation fails. Passing NULL on to libdeflate_gzip_compress segfaults,
+    -- so throw instead. (Throwing here in bracket's acquire means there's
+    -- nothing for the release action to free.)
+    allocCompressor = do
+        c@(LibDeflateCompressor p) <- libdeflate_alloc_compressor $ fromIntegral compressionLevel
+        when (p == nullPtr) $ throwIO $ ErrorCall $
+          if compressionLevel < 0 || compressionLevel > 12
+            then "libdeflate-hs: invalid compression level " ++ show compressionLevel ++ " (must be 0-12)"
+            else "libdeflate-hs: libdeflate_alloc_compressor failed for compression level "
+                   ++ show compressionLevel ++ " (out of memory?)"
+        return c
 
 {-
 -- XXX testing:
