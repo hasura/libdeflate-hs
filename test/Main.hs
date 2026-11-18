@@ -10,6 +10,8 @@ import Codec.Compression.LibDeflate.GZip
 import qualified Codec.Compression.GZip as Zlib
 import Test.QuickCheck.Instances.ByteString ()
 import Control.Monad
+import Control.Exception
+import Data.List (isInfixOf)
 
 
 prop_roundTripCompression :: BS.ByteString -> Property
@@ -41,8 +43,22 @@ smokeCheckWeActuallyCompress = do
         error "FIXME!!!: The numbers don't actually matter here, we're just proving that we're actually compressing the string."
     putStrLn "Okay smokeCheckWeActuallyCompress"
 
+-- libdeflate_alloc_compressor returns NULL for a compression level outside
+-- 0-12 (or on allocation failure). Make sure we throw rather than hand NULL to
+-- libdeflate_gzip_compress, which segfaults.
+invalidCompressionLevelThrows :: IO ()
+invalidCompressionLevelThrows = do
+    forM_ [-1, 13, 100] $ \lvl -> do
+        r <- try (evaluate (gzipCompressSimple "And the haters gonna hate" lvl))
+        case r of
+          Left (ErrorCall msg) | "compression level" `isInfixOf` msg -> return ()
+          Left (ErrorCall msg) -> error $ "unexpected exception for level " ++ show lvl ++ ": " ++ msg
+          Right _ -> error $ "expected an exception for compression level " ++ show lvl
+    putStrLn "Okay invalidCompressionLevelThrows"
+
 main :: IO ()
 main = do
     smokeCheckWeActuallyCompress
+    invalidCompressionLevelThrows
     quickCheckWith (stdArgs { maxSuccess = 10000, chatty = True, maxSize = 50000 }) prop_roundTripCompression
     quickCheckWith (stdArgs { maxSuccess = 50000, chatty = True, maxSize = 50 }) prop_roundTripCompressionCompressible

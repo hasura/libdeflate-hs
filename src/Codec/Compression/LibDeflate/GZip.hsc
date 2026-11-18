@@ -94,8 +94,8 @@ gzipCompress (BS.PS inputFpDirty off inputLen) compressionLevel maxCompressedSiz
     bracket
     -- NOTE: this takes ~3us to 13us depending on compression level; these
     -- could be reused in threadsafe pool impl, but probably not warranted
-      (libdeflate_alloc_compressor $ fromIntegral compressionLevel)
-      libdeflate_free_compressor 
+      allocCompressor
+      libdeflate_free_compressor
        $ \compressor -> do
             -- NOTE unsafeWithForeignPtr: we must not loop or throw exception in continuation:
             unsafeWithForeignPtr inputFp $ \inputPtr -> do
@@ -105,6 +105,19 @@ gzipCompress (BS.PS inputFpDirty off inputLen) compressionLevel maxCompressedSiz
                       outputPtr (fromIntegral maxCompressedSizeBytes)
                 return $
                      BS.PS outputFp 0 (fromIntegral compressedSizeBytes) <$ guard (compressedSizeBytes > 0)
+  where
+    -- libdeflate_alloc_compressor returns NULL for a level outside 0-12, or if
+    -- allocation fails. Passing NULL on to libdeflate_gzip_compress segfaults,
+    -- so throw instead. (Throwing here in bracket's acquire means there's
+    -- nothing for the release action to free.)
+    allocCompressor = do
+        c@(LibDeflateCompressor p) <- libdeflate_alloc_compressor $ fromIntegral compressionLevel
+        when (p == nullPtr) $ throwIO $ ErrorCall $
+          if compressionLevel < 0 || compressionLevel > 12
+            then "libdeflate-hs: invalid compression level " ++ show compressionLevel ++ " (must be 0-12)"
+            else "libdeflate-hs: libdeflate_alloc_compressor failed for compression level "
+                   ++ show compressionLevel ++ " (out of memory?)"
+        return c
 
 {-
 -- XXX testing:
